@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+# 大模型配置
+# 注意:api-key 不写死在文件里,而是从环境变量 DEEPSEEK_API_KEY 读取。
+# 这样推 GitHub 时不会泄露密钥。
+llm:
+  base-url: https://api.deepseek.com
+  api-key: ${DEEPSEEK_API_KEY:}
+  model: deepseek-v4-pro
+
+# Embedding 向量化配置(当前用智谱 AI,免费额度)
+embedding:
+  provider: zhipu
+  endpoint: https://open.bigmodel.cn/api/paas/v4/embeddings
+  api-key: ${ZHIPU_API_KEY:}
+  model: embedding-2

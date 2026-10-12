@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Java RAG 知识库问答</title>
+  <style>
+    :root {
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #e2e8f0; --dim: #94a3b8; --accent: #6366f1; --accent2: #22d3ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+      padding: 24px; font-family: -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: var(--text);
+      background: radial-gradient(900px 500px at 15% -10%, rgba(99,102,241,.35), transparent 60%),
+                  radial-gradient(800px 500px at 100% 0%, rgba(34,211,238,.18), transparent 55%),
+                  var(--bg);
+    }
+    .card {
+      width: 100%; max-width: 720px; background: rgba(255,255,255,.03);
+      border: 1px solid var(--border); border-radius: 20px; padding: 28px;
+      backdrop-filter: blur(12px); box-shadow: 0 24px 60px rgba(0,0,0,.45);
+    }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .sub { margin: 0 0 22px; color: var(--dim); font-size: 13px; }
+    .row { display: flex; gap: 10px; }
+    input {
+      flex: 1; padding: 13px 16px; border-radius: 12px; border: 1px solid var(--border);
+      background: var(--surface); color: var(--text); font-size: 15px; outline: none; font-family: inherit;
+    }
+    input:focus { border-color: var(--accent); }
+    button {
+      padding: 13px 22px; border: none; border-radius: 12px; cursor: pointer; font-size: 15px;
+      font-weight: 600; color: #fff; background: linear-gradient(135deg, var(--accent), var(--accent2));
+    }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .answer {
+      margin-top: 20px; padding: 16px; border-radius: 12px; background: var(--surface);
+      border: 1px solid var(--border); line-height: 1.7; font-size: 15px; white-space: pre-wrap;
+      display: none;
+    }
+    .answer.show { display: block; }
+    .sources { margin-top: 14px; }
+    .sources summary { cursor: pointer; color: var(--dim); font-size: 13px; }
+    .src {
+      margin-top: 8px; padding: 10px 12px; border-radius: 8px; background: rgba(99,102,241,.08);
+      border: 1px solid var(--border); font-size: 13px; color: var(--dim); line-height: 1.5;
+    }
+    .src b { color: var(--text); }
+    .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #fff3;
+      border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; vertical-align: -3px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>📚 Java RAG 知识库问答</h1>
+    <p class="sub">基于员工手册的知识库 · Spring Boot + 智谱 Embedding + DeepSeek</p>
+
+    <form class="row" id="form">
+      <input id="q" placeholder="问点什么?例如:年假有几天?" autocomplete="off" />
+      <button id="btn" type="submit">提问</button>
+    </form>
+
+    <div class="answer" id="answer"></div>
+
+    <details class="sources" id="sourcesWrap" style="display:none">
+      <summary>查看检索到的资料(引用来源)</summary>
+      <div id="sources"></div>
+    </details>
+  </div>
+
+  <script>
+    const form = document.getElementById('form');
+    const q = document.getElementById('q');
+    const btn = document.getElementById('btn');
+    const answer = document.getElementById('answer');
+    const sourcesWrap = document.getElementById('sourcesWrap');
+    const sources = document.getElementById('sources');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const text = q.value.trim();
+      if (!text) return;
+
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span>';
+      answer.classList.remove('show');
+      sourcesWrap.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/ask', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+
+        answer.textContent = data.reply || '（无回答）';
+        answer.classList.add('show');
+
+        if (data.sources && data.sources.length) {
+          sources.innerHTML = data.sources.map((s, i) =>
+            `<div class="src"><b>资料 ${i + 1}</b>：${escapeHtml(s)}</div>`
+          ).join('');
+          sourcesWrap.style.display = '';
+        }
+      } catch (err) {
+        answer.textContent = '⚠️ 出错了：' + err.message + '\n\n请确认后端已启动，且已设置 DEEPSEEK_API_KEY 和 ZHIPU_API_KEY。';
+        answer.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '提问';
+      }
+    });
+
+    function escapeHtml(s) {
+      return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>');
+    }
+  </script>
+</body>
+</html>
